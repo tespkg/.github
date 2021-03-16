@@ -1,0 +1,11 @@
+{
+    "name": "TES Go workflow",
+    "description": "TES Go workflow template.",
+    "iconName": "gopher-front",
+    "categories": [
+        "Go"
+    ],
+    "filePatterns": [
+        "go.mod"
+    ]
+}
