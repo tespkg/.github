@@ -1,10 +1,7 @@
 {
     "name": "TES Go workflow",
-    "description": "TES Go workflow template.",
-    "iconName": "gopher-front",
-    "categories": [
-        "Go"
-    ],
+    "description": "Target Energy Solutions Go workflow template.",
+    "iconName": "tes",
     "filePatterns": [
         "go.mod"
     ]
