@@ -1,0 +1,54 @@
+name: go project build & test
+
+# This workflow is for Go development build & test
+# Note:
+# 1. packaging shouldn't be included in this workflow
+# 2.
+
+on:
+  # this workflow runs on every push to main branch: should usually be triggered by a PR merge.
+  # it also runs on every push of a pull_request
+  push:
+    # $default-branch is configured in repo settings: default is main, could be master or develop as well
+    branches: [$default-branch]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12.2-alpine
+        env:
+          POSTGRES_USER: runner
+          POSTGRES_PASSWORD: runner
+          POSTGRES_DB: unittest
+        # when using local mode: job runs on the machine, make sure to expose the services
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: make ci-test
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: runner
+          POSTGRES_PASSWORD: "runner"
+          POSTGRES_DB: unittest
