@@ -9,9 +9,10 @@ on:
   # this workflow runs on every push to main branch: should usually be triggered by a PR merge.
   # it also runs on every push of a pull_request
   push:
-    # $default-branch is configured in repo settings: default is main, could be master or develop as well
-    branches: [$default-branch]
+    # restrict pipelines to run on push to main & pull_request against main branch
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   build_test:
