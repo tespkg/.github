@@ -1,9 +1,9 @@
-name: go project build & test
+name: go build & test
 
-# This workflow is for Go development build & test
+# This workflow is for Go development build & test. It should ensure the program is build correctly
 # Note:
 # 1. packaging shouldn't be included in this workflow
-# 2.
+# 2. cache should be used for dependencies
 
 on:
   # this workflow runs on every push to main branch: should usually be triggered by a PR merge.
@@ -14,27 +14,31 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build_test:
+    runs-on: [self-hosted, linux]
     services:
+      # dependent services can be launch this way
       postgres:
         image: postgres:12.2-alpine
         env:
           POSTGRES_USER: runner
           POSTGRES_PASSWORD: runner
           POSTGRES_DB: unittest
-        # when using local mode: job runs on the machine, make sure to expose the services
+        # when using local mode: job runs on the machine, make sure to expose the ports
+        # when using container mode, i.e. `container: golang:15` then no need to expose ports
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.15
 
-      - uses: actions/cache@v2
+      - name: Cache go mod
+        uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
