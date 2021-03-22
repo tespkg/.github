@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Report a new bug
-title: "\U0001F41B - Title"
+title: "\U0001F41B - "
 labels: bug
 assignees: ''
 
