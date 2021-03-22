@@ -1,0 +1,5 @@
+PR_TITLE_REGEX: ^.{1,50}$ #Ensure title is <50 chars for nice printing in log
+COMMIT_MESSAGE_REGEX: (#\d{4,6}) #Ensure reference to issue in body
+
+# Future
+# - Commit Title With issue ref: ^.{1,50}$(?<!#\d{6})
