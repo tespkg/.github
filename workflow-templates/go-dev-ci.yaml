@@ -1,15 +1,7 @@
-name: go build & test
-
-# This workflow is for Go development build & test. It should ensure the program is build correctly
-# Note:
-# 1. packaging shouldn't be included in this workflow
-# 2. cache should be used for dependencies
+name: dev ci
 
 on:
-  # this workflow runs on every push to main branch: should usually be triggered by a PR merge.
-  # it also runs on every push of a pull_request
   push:
-    # restrict pipelines to run on push to main & pull_request against main branch
     branches: [main]
   pull_request:
     branches: [main]
@@ -18,28 +10,24 @@ jobs:
   build_test:
     runs-on: [self-hosted, linux]
     services:
-      # dependent services can be launch this way
       postgres:
         image: postgres:12.2-alpine
         env:
           POSTGRES_USER: runner
           POSTGRES_PASSWORD: runner
           POSTGRES_DB: unittest
-        # when using local mode: job runs on the machine, make sure to expose the ports
-        # when using container mode, i.e. `container: golang:15` then no need to expose ports
         ports:
           - 5432:5432
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.15
 
-      - name: Cache go mod
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -47,7 +35,13 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build
-        run: go build -v ./...
+        run: make prod
+
+      - name: Upload build
+        uses: actions/upload-artifact@v2
+        with:
+          name: thinsection
+          path: thinsection
 
       - name: Test
         run: make ci-test
@@ -57,3 +51,53 @@ jobs:
           POSTGRES_USER: runner
           POSTGRES_PASSWORD: "runner"
           POSTGRES_DB: unittest
+
+  package_docker:
+    runs-on: [self-hosted, linux]
+    needs:
+      - build_test
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v2
+        with:
+          name: thinsection
+
+      - name: Docker image name env
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::8}" >> $GITHUB_ENV
+          echo "GITLAB_IMAGE_NAME=registry.gitlab.com/target-digital-transformation/thin-section-project/github:${GITHUB_SHA::8}" >> $GITHUB_ENV
+
+      - name: Build docker image
+        # permission change due to: actions/upload-artifact#38
+        run: |
+          chmod +x thinsection
+          docker build -f- -t $IMAGE_NAME . <<EOF
+          FROM alpine
+          LABEL org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}
+          COPY thinsection /
+          ENTRYPOINT ["/thinsection"]
+          EOF
+
+      - name: Push image to github container registry
+        run: |
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ secrets.CR_USER }} --password-stdin
+          docker push $IMAGE_NAME
+
+      - name: Push image to gitlab registry
+        run: |
+          echo ${{ secrets.GITLAB_CR_PAT }} | docker login registry.gitlab.com -u ${{ secrets.GITLAB_CR_USER }} --password-stdin
+          docker tag $IMAGE_NAME $GITLAB_IMAGE_NAME
+          docker push $GITLAB_IMAGE_NAME
+
+  deploy_to_dev:
+    runs-on: [self-hosted, linux]
+    needs:
+      - package_docker
+    steps:
+      - name: Push to ArgoCD
+        run: |
+          echo "TODO"
+          echo "$IMAGE_NAME"
+          echo "$GITLAB_IMAGE_NAME"
+          echo ${{ env.IMAGE_NAME }}
+          echo ${{ env.GITLAB_IMAGE_NAME }}
