@@ -1,0 +1,109 @@
+name: dev ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build_test:
+    runs-on: [self-hosted, linux, k8s]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - name: Cache yarn packages
+        uses: tespkg/actions-cache@v1
+        id: cache
+        with:
+          endpoint: s3.meera.tech
+          accessKey: YOURACCESSKEY
+          secretKey: YOURSECRETKEY
+          bucket: actions-cache
+          path: |
+            ${{ steps.yarn-cache-dir-path.outputs.dir }}
+            node_modules/
+          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Login to NPM
+        run: |
+          echo "@target-energysolutions:registry=https://registry.npmjs.org/" > .npmrc
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_AUTH_TOKEN }}" >> .npmrc
+
+      - name: Install Deps
+        run: yarn install --pure-lockfile
+
+      - name: Format
+        run: yarn format:diff
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Unit Test
+        run: yarn test --coverage --watchAll=false --coverageReporters="text-summary"
+
+      - name: Build
+        run: yarn build
+
+      # TODO: use node serve and get rid of the next 3 steps
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Build df-fe
+        run: CGO_ENABLED=0 go build -o build/df-fe main.go
+
+      - name: Docker image name env
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::8}" >> $GITHUB_ENV
+          echo "GITLAB_IMAGE_NAME=registry.gitlab.com/target-digital-transformation/df/df-fe/github:${GITHUB_SHA::8}" >> $GITHUB_ENV
+
+      - name: Build docker image
+        run: |
+          cd build
+          ls -lR
+          docker build -f- -t $IMAGE_NAME . <<EOF
+          FROM alpine
+          LABEL org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}
+          COPY . /build
+          CMD [ "/build/df-fe", "-debug", "-allow", "-port=:80"] # debug mode
+          EOF
+
+      - name: Push image to github container registry
+        run: |
+          echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u ${{ secrets.CR_USER }} --password-stdin
+          docker push $IMAGE_NAME
+
+      - name: Push image to gitlab registry
+        run: |
+          echo ${{ secrets.GITLAB_CR_PAT }} | docker login registry.gitlab.com -u ${{ secrets.GITLAB_CR_USER }} --password-stdin
+          docker tag $IMAGE_NAME $GITLAB_IMAGE_NAME
+          docker push $GITLAB_IMAGE_NAME
+
+  # deploy_to_dev:
+  #   runs-on: [self-hosted, linux]
+  #   needs:
+  #     - package_docker
+  #   steps:
+  #     - name: Push to ArgoCD
+  #       run: |
+  #         echo "TODO"
+  #         echo "$IMAGE_NAME"
+  #         echo "$GITLAB_IMAGE_NAME"
+  #         echo ${{ env.IMAGE_NAME }}
+  #         echo ${{ env.GITLAB_IMAGE_NAME }}
