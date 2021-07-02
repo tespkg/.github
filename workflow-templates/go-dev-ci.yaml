@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build_test:
+  build_test_package:
     runs-on: [self-hosted, linux]
     services:
       postgres:
