@@ -27,40 +27,29 @@ jobs:
         with:
           go-version: 1.15
 
-      - uses: actions/cache@v2
+      - uses: tespkg/actions-cache@v1
         with:
+          endpoint: s3.meera.tech
+          accessKey: YOURACCESSKEY
+          secretKey: YOURSECRETKEY
+          bucket: actions-cache
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Build
-        run: make prod
-
-      - name: Upload build
-        uses: actions/upload-artifact@v2
-        with:
-          name: thinsection
-          path: thinsection
+      - name: Build main
+        run: |
+          CGO_ENABLED=0 go build -o main runtime/main.go
 
       - name: Test
-        run: make ci-test
+        run: go test ./...
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_USER: runner
           POSTGRES_PASSWORD: "runner"
           POSTGRES_DB: unittest
-
-  package_docker:
-    runs-on: [self-hosted, linux]
-    needs:
-      - build_test
-    steps:
-      - name: Download build
-        uses: actions/download-artifact@v2
-        with:
-          name: thinsection
 
       - name: Docker image name env
         run: |
