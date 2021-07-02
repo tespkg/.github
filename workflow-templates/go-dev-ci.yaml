@@ -81,7 +81,7 @@ jobs:
   deploy_to_dev:
     runs-on: [self-hosted, linux]
     needs:
-      - package_docker
+      - build_test_package
     steps:
       - name: Push to ArgoCD
         run: |
