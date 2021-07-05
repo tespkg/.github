@@ -7,22 +7,20 @@ on:
     branches: [main]
 
 jobs:
-  build_test:
+  build_test_package:
     runs-on: [self-hosted, linux]
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379:6379
+    # services:
+    #   redis:
+    #     image: redis
+    #     ports:
+    #       - 6379:6379
 
     steps:
-      - name: Install git-lfs
-        run: sudo apt-get update && sudo apt-get install git-lfs
-
       - uses: actions/checkout@v2
-        with:
-          lfs: true
+        # with:
+        #   lfs: true
 
+      # if build & test is not needed, setup python, etc is not needed either
       - uses: actions/setup-python@v2
         with:
           python-version: "3.8"
@@ -32,7 +30,7 @@ jobs:
         with:
           path: |
             ~/.cache/pip
-            ~/.cache/torch # this is this repo specific. pytorch models
+            # ~/.cache/torch # this is this repo specific. pytorch models
           # Look to see if there is a cache hit for the corresponding requirements file
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
@@ -41,7 +39,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg libsm6 libxext6
           pip install -r requirements.txt
 
       - name: Format
@@ -57,18 +54,6 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-
-  package_docker:
-    runs-on: [self-hosted, linux]
-    needs:
-      - build_test
-    steps:
-      - name: Install git-lfs
-        run: sudo apt-get update && sudo apt-get install git-lfs
-
-      - uses: actions/checkout@v2
-        with:
-          lfs: true
 
       - name: Docker image name env
         run: |
@@ -93,7 +78,7 @@ jobs:
   deploy_to_dev:
     runs-on: [self-hosted, linux]
     needs:
-      - package_docker
+      - build_test_package
     steps:
       - name: Push to ArgoCD
         run: |
