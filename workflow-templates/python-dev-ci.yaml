@@ -70,6 +70,7 @@ jobs:
           docker push $IMAGE_NAME
 
       - name: Push image to gitlab registry
+        # if: ${{ github.ref == 'refs/heads/main' }}
         run: |
           echo ${{ secrets.GITLAB_CR_PAT }} | docker login registry.gitlab.com -u ${{ secrets.GITLAB_CR_USER }} --password-stdin
           docker tag $IMAGE_NAME $GITLAB_IMAGE_NAME

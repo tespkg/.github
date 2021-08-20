@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_test_package:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, k8s]
     services:
       postgres:
         image: postgres:12.2-alpine
@@ -37,6 +37,14 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
+      - name: Configure git for private golang modules
+        run: |
+          # ref: https://github.com/dtinth/obtain-github-app-installation-access-token
+          GO_GET_TOKEN=$(npx obtain-github-app-installation-access-token ci ${{ secrets.GO_GET_APP_SECRET }})
+          git config --global url."https://x-access-token:${GO_GET_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://gitlab-ci-token:${{ secrets.GITLAB_CR_PAT }}@gitlab.com/".insteadOf "https://gitlab.com/"
+          go env -w GOPRIVATE=tespkg.in,github.com/tespkg,gitlab.com/target-digital-transformation
 
       - name: Build main
         run: |
