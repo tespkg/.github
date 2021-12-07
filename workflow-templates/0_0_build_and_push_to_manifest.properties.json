@@ -1,0 +1,5 @@
+{
+    "name": "TES  build_and_push_to_manifest workflow",
+    "description": "Target Energy Solutions build_and_push_to_manifest workflow template.",
+    "iconName": "target"
+}
