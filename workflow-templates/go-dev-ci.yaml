@@ -47,6 +47,14 @@ jobs:
           go env -w GOPRIVATE=tespkg.in,github.com/tespkg,gitlab.com/target-digital-transformation
 
       - name: Build main
+        # Here we build an static binary and will directly using `ADD` directive to the docker image. 
+        # This has a few advantages:
+        # 1. the runner already runs in a fresh container, so reproducibility is guaranteed 
+        # 2. dependencies won't need to be downloaded again. If using Dockerfile, it would be.
+        # 3. using CGO_ENABLED=0 to make sure we build static binary so it can be run in an alpine image
+        # Some caveats & further improvements:
+        # 1. if your project requires CGO, you should use the proper Dockerfile to build
+        # 2. we should explore using [ko](github.com/google/ko) to build minimal docker image directly from source
         run: |
           CGO_ENABLED=0 go build -o main runtime/main.go
 
